@@ -1649,6 +1649,14 @@ function registerCommands(programInstance) {
 			'Save research results to .taskmaster/docs/research/ directory'
 		)
 		.option('--tag <tag>', 'Specify tag context for task operations')
+		.option(
+			'--terminal <commands>',
+			'Comma-separated terminal commands to execute for context'
+		)
+		.option(
+			'--execute-first',
+			'Execute terminal commands before research (default: include in prompt)'
+		)
 		.action(async (prompt, options) => {
 			// Parameter validation
 			if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
@@ -1791,6 +1799,25 @@ function registerCommands(programInstance) {
 				}
 			}
 
+			// Validate and parse terminal commands if provided
+			let terminalCommands = [];
+			if (options.terminal) {
+				try {
+					terminalCommands = options.terminal.split(',').map((cmd) => {
+						const trimmedCmd = cmd.trim();
+						if (trimmedCmd.length === 0) {
+							throw new Error('Empty terminal command provided');
+						}
+						return trimmedCmd;
+					});
+				} catch (error) {
+					console.error(
+						chalk.red(`Error parsing terminal commands: ${error.message}`)
+					);
+					process.exit(1);
+				}
+			}
+
 			// Create validated parameters object
 			const validatedParams = {
 				prompt: prompt.trim(),
@@ -1803,7 +1830,9 @@ function registerCommands(programInstance) {
 				allowFollowUp: true, // Always allow follow-up in CLI
 				detailLevel: options.detail ? options.detail.toLowerCase() : 'medium',
 				tasksPath: tasksPath,
-				projectRoot: projectRoot
+				projectRoot: projectRoot,
+				terminalCommands: terminalCommands,
+				executeBeforeResearch: !!options.executeFirst
 			};
 
 			// Display what we're about to do
@@ -1833,6 +1862,17 @@ function registerCommands(programInstance) {
 				console.log(chalk.gray('Including project file tree'));
 			}
 
+			if (validatedParams.terminalCommands.length > 0) {
+				console.log(
+					chalk.gray(`Terminal commands: ${validatedParams.terminalCommands.join(', ')}`)
+				);
+				if (validatedParams.executeBeforeResearch) {
+					console.log(chalk.gray('Commands will be executed before research'));
+				} else {
+					console.log(chalk.gray('Commands will be included in research prompt'));
+				}
+			}
+
 			console.log(chalk.gray(`Detail level: ${validatedParams.detailLevel}`));
 
 			try {
@@ -1848,7 +1888,9 @@ function registerCommands(programInstance) {
 					detailLevel: validatedParams.detailLevel,
 					projectRoot: validatedParams.projectRoot,
 					saveToFile: !!options.saveFile,
-					tag: tag
+					tag: tag,
+					terminalCommands: validatedParams.terminalCommands,
+					executeBeforeResearch: validatedParams.executeBeforeResearch
 				};
 
 				// Execute research
@@ -2933,7 +2975,9 @@ ${result.result}
 					'  -i, --id <ids>      Comma-separated task/subtask IDs for context (e.g., "15,23.2")\n' +
 					'  -f, --files <paths> Comma-separated file paths for context\n' +
 					'  -c, --context <text> Additional custom context text\n' +
-					'  --tree              Include project file tree structure\n\n' +
+					'  --tree              Include project file tree structure\n' +
+					'  --terminal <cmds>   Comma-separated terminal commands for context\n' +
+					'  --execute-first     Execute terminal commands before research\n\n' +
 					chalk.cyan('Output Options:') +
 					'\n' +
 					'  -d, --detail <level> Detail level: low, medium, high (default: medium)\n' +
@@ -2944,7 +2988,8 @@ ${result.result}
 					'  task-master research "How should I implement user authentication?"\n' +
 					'  task-master research "What\'s the best approach?" --id=15,23.2\n' +
 					'  task-master research "How does auth work?" --files=src/auth.js --tree\n' +
-					'  task-master research "Implementation steps?" --save-to=15.2 --detail=high',
+					'  task-master research "Implementation steps?" --save-to=15.2 --detail=high\n' +
+					'  task-master research "What tests are failing?" --terminal="npm test" --execute-first',
 				{ padding: 1, borderColor: 'blue', borderStyle: 'round' }
 			)
 		);

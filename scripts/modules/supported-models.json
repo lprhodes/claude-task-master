@@ -29,6 +29,24 @@
 			"max_tokens": 64000
 		}
 	],
+	"claude-code": [
+		{
+			"id": "claude-3-7-sonnet-20250219",
+			"swe_score": 0.623,
+			"cost_per_1m_tokens": { "input": 3.0, "output": 15.0 },
+			"allowed_roles": ["main", "research", "fallback"],
+			"max_tokens": 120000,
+			"description": "Claude with terminal command execution capabilities"
+		},
+		{
+			"id": "claude-3-5-sonnet-20241022",
+			"swe_score": 0.49,
+			"cost_per_1m_tokens": { "input": 3.0, "output": 15.0 },
+			"allowed_roles": ["main", "research", "fallback"],
+			"max_tokens": 64000,
+			"description": "Claude with terminal command execution capabilities"
+		}
+	],
 	"openai": [
 		{
 			"id": "gpt-4o",

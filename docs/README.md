@@ -10,6 +10,7 @@ Welcome to the Task Master documentation. Use the links below to navigate to the
 ## Reference
 
 - [Command Reference](command-reference.md) - Complete list of all available commands (including research and multi-task viewing)
+- [Terminal Commands](terminal-commands.md) - Using terminal commands with research for real-time context
 - [Task Structure](task-structure.md) - Understanding the task format and features
 
 ## Examples & Licensing

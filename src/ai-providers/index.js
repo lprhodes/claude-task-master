@@ -4,6 +4,7 @@
  */
 
 export { AnthropicAIProvider } from './anthropic.js';
+export { default as ClaudeCodeAIProvider } from './claude-code.js';
 export { PerplexityAIProvider } from './perplexity.js';
 export { GoogleAIProvider } from './google.js';
 export { OpenAIProvider } from './openai.js';

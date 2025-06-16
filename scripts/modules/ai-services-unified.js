@@ -36,6 +36,7 @@ import {
 // Import provider classes
 import {
 	AnthropicAIProvider,
+	ClaudeCodeAIProvider,
 	PerplexityAIProvider,
 	GoogleAIProvider,
 	OpenAIProvider,
@@ -50,6 +51,7 @@ import {
 // Create provider instances
 const PROVIDERS = {
 	anthropic: new AnthropicAIProvider(),
+	'claude-code': new ClaudeCodeAIProvider(),
 	perplexity: new PerplexityAIProvider(),
 	google: new GoogleAIProvider(),
 	openai: new OpenAIProvider(),

@@ -12,6 +12,7 @@ import { highlight } from 'cli-highlight';
 import { ContextGatherer } from '../utils/contextGatherer.js';
 import { FuzzyTaskSearch } from '../utils/fuzzyTaskSearch.js';
 import { generateTextService } from '../ai-services-unified.js';
+import { terminalService } from '../terminal-service.js';
 import {
 	log as consoleLog,
 	findProjectRoot,
@@ -35,6 +36,8 @@ import {
  * @param {string} [options.detailLevel] - Detail level: 'low', 'medium', 'high'
  * @param {string} [options.projectRoot] - Project root directory
  * @param {boolean} [options.saveToFile] - Whether to save results to file (MCP mode)
+ * @param {Array<string>} [options.terminalCommands] - Terminal commands to execute for context
+ * @param {boolean} [options.executeBeforeResearch] - Execute terminal commands before research
  * @param {Object} [context] - Execution context
  * @param {Object} [context.session] - MCP session object
  * @param {Object} [context.mcpLog] - MCP logger object
@@ -58,7 +61,9 @@ async function performResearch(
 		includeProjectTree = false,
 		detailLevel = 'medium',
 		projectRoot: providedProjectRoot,
-		saveToFile = false
+		saveToFile = false,
+		terminalCommands = [],
+		executeBeforeResearch = false
 	} = options;
 
 	const {
@@ -73,6 +78,17 @@ async function performResearch(
 	const projectRoot = providedProjectRoot || findProjectRoot();
 	if (!projectRoot) {
 		throw new Error('Could not determine project root directory');
+	}
+
+	// Execute terminal commands if requested
+	let terminalContext = '';
+	if (terminalCommands.length > 0 && executeBeforeResearch) {
+		const terminalResults = await executeTerminalCommands(
+			terminalCommands,
+			projectRoot,
+			outputFormat
+		);
+		terminalContext = formatTerminalResults(terminalResults);
 	}
 
 	// Create consistent logger
@@ -178,10 +194,18 @@ async function performResearch(
 			logFn.debug(`Could not auto-discover tasks: ${error.message}`);
 		}
 
+		// Combine custom context with terminal context
+		const combinedCustomContext = 
+			customContext + 
+			(terminalContext ? `\n\n${terminalContext}` : '') +
+			(terminalCommands.length > 0 && !executeBeforeResearch ? 
+				`\n\n## Terminal Commands to Execute\n${terminalCommands.map(cmd => `- ${cmd}`).join('\n')}` : 
+				'');
+
 		const contextResult = await contextGatherer.gather({
 			tasks: finalTaskIds,
 			files: filePaths,
-			customContext,
+			customContext: combinedCustomContext,
 			includeProjectTree,
 			format: 'research', // Use research format for AI consumption
 			includeTokenCounts: true
@@ -1087,6 +1111,82 @@ function buildConversationContext(conversationHistory) {
 	});
 
 	return contextParts.join('\n');
+}
+
+/**
+ * Execute terminal commands and collect results
+ * @param {Array<string>} commands - Commands to execute
+ * @param {string} projectRoot - Project root directory
+ * @param {string} outputFormat - Output format for display
+ * @returns {Promise<Array>} Array of command results
+ */
+async function executeTerminalCommands(commands, projectRoot, outputFormat) {
+	const results = [];
+	
+	if (outputFormat === 'text') {
+		console.log(
+			boxen(chalk.cyan.bold('🖥️  Executing Terminal Commands'), {
+				padding: 1,
+				borderColor: 'cyan',
+				borderStyle: 'round',
+				margin: { top: 1, bottom: 1 }
+			})
+		);
+	}
+
+	for (const command of commands) {
+		if (outputFormat === 'text') {
+			console.log(chalk.gray(`Executing: ${command}`));
+		}
+
+		const result = await terminalService.executeCommand(command, {
+			cwd: projectRoot,
+			timeout: 30000
+		});
+
+		results.push(result);
+
+		if (outputFormat === 'text') {
+			console.log(terminalService.formatResult(result));
+		}
+	}
+
+	return results;
+}
+
+/**
+ * Format terminal results for inclusion in AI context
+ * @param {Array} results - Terminal command results
+ * @returns {string} Formatted terminal context
+ */
+function formatTerminalResults(results) {
+	let formatted = '## Terminal Command Results\n\n';
+
+	results.forEach((result, index) => {
+		formatted += `### Command ${index + 1}: \`${result.command}\`\n\n`;
+		
+		if (result.blocked) {
+			formatted += `**Status:** Blocked for safety\n`;
+			formatted += `**Reason:** ${result.stderr}\n\n`;
+		} else {
+			formatted += `**Exit Code:** ${result.exitCode}\n`;
+			formatted += `**Duration:** ${result.duration}ms\n\n`;
+			
+			if (result.stdout) {
+				formatted += `**Output:**\n\`\`\`\n${result.stdout}\n\`\`\`\n\n`;
+			}
+			
+			if (result.stderr && result.exitCode !== 0) {
+				formatted += `**Error:**\n\`\`\`\n${result.stderr}\n\`\`\`\n\n`;
+			}
+		}
+
+		if (result.truncated) {
+			formatted += `*Note: Output was truncated*\n\n`;
+		}
+	});
+
+	return formatted;
 }
 
 export { performResearch };
