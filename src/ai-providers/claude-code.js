@@ -1,4 +1,4 @@
-import AnthropicAIProvider from './anthropic.js';
+import { AnthropicAIProvider } from './anthropic.js';
 import { terminalService } from '../../scripts/modules/terminal-service.js';
 import { log } from '../../scripts/modules/utils.js';
 
